@@ -1,0 +1,108 @@
+
+Import numpy as np
+Import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import datasets, transforms
+
+from torch.autograd import Variable
+from torch.nn import Parameter
+import math
+
+model = models.alexnet(pretrained=True).to(device).eval()
+label = np.argmax(model(img).data.cpu().numpy())
+print("label={}".format(label)) 
+img.requires_grad = True
+for param in model.parameters():
+    param.requires_grad = False
+    
+optimizer = torch.optim.Adam([img]，lr=0.01)
+loss_func = torch.nn.CrossEntropyLoss()
+epochs = 100
+target = 288 
+target = Variable(torch.Tensor([float(target)]).to(device).long())
+for epoch in range(epochs):
+     optimizer.zero_grad()
+    # forward + backward
+    output = model(img)
+
+    loss = loss_func(output, target)
+    label = np.argmax(output.data.cpu().numpy())
+    print("epoch={} loss={} label={}".format(epoch, loss, label))
+    if label == target:
+        break
+    loss.backward()
+optimizer.step()
+
+import math
+import copy
+class AngleLoss(nn.Module):
+    def __init__(self, gamma=0):
+        super(AngleLoss, self).__init__()
+        self.gamma   = gamma
+        self.it = 0
+        self.LambdaMin = 5.0
+        self.LambdaMax = 1500.0
+        self.lamb = 1500.0
+
+    def forward(self, input, target):
+        self.it += 1
+        cos_theta,phi_theta = input
+        target = target.view(-1,1) #size=(B,1)
+
+        index = cos_theta.data * 0.0 #size=(B,Classnum)
+        index.scatter_(1,target.data.view(-1,1),1)
+        index = index.byte()
+        index = Variable(index)
+
+        self.lamb = max(self.LambdaMin,self.LambdaMax/(1+0.1*self.it ))
+        output = cos_theta * 1.0 #size=(B,Classnum)
+        output[index] -= cos_theta[index]*(1.0+0)/(1+self.lamb)
+        output[index] += phi_theta[index]*(1.0+0)/(1+self.lamb)
+
+        logpt = F.log_softmax(output)
+        logpt = logpt.gather(1,target)
+        logpt = logpt.view(-1)
+        pt = Variable(logpt.data.exp())
+
+        loss = -1 * (1-pt)**self.gamma * logpt
+        loss = loss.mean()
+
+        return loss
+main():
+ 
+
+     net = getattr(net_sphere,'sphere20a')()
+ # net.load_state_dict(torch.load(args.model))
+     net.load_state_dict(torch.load('./model/sphere20a_20171020.pth'))
+     net.cuda()
+     net.eval()
+     net.feature = True
+ 
+
+     data_path = '/mnt/server9_hard1/seungju/dataset/LFW'
+ 
+
+     landmark = {}
+     with open(data_path + '/lfw_landmark.txt') as f:
+         landmark_lines = f.readlines()
+ 
+
+     for line in landmark_lines:
+         l = line.replace('\n','').split('\t')
+         landmark[l[0]] = [int(k) for k in l[1:]]
+ 
+
+     # randomly select image from lfw data set
+     
+     with open(data_path + '/pairs.txt') as f :
+         pairs_lines = f.readlines()[1:]
+ 
+
+     x = randomly_select_image(landmark,pairs_lines,data_path)
+     saveImg(x,'original')
+     x_adv = generate_adversarial_face(net,x,T = 10000)
+     pdb.set_trace()
+     saveImg(x,'final')
+ 
